@@ -100,6 +100,7 @@ function GuiLibrary:CreateWindow(title)
         tab.Content = contentFrame
         
         local tabIndex = #self.Tabs + 1
+        self.Tabs[tabIndex] = tab
         
         tabButton.MouseButton1Click:Connect(function()
             self:SelectTab(tabIndex)
@@ -400,10 +401,8 @@ function GuiLibrary:CreateWindow(title)
             return section
         end
         
-        self.Tabs[#self.Tabs + 1] = tab
-        
         -- Select the first tab by default
-        if #self.Tabs == 1 then
+        if tabIndex == 1 then
             self:SelectTab(1)
         end
         
@@ -443,7 +442,8 @@ function GuiLibrary:CreateWindow(title)
     end)
     
     -- Make GUI visible and return window
-    mainFrame.Parent = game.CoreGui or game:GetService("Players").LocalPlayer:WaitForChild("PlayerGui")
+    local parent = game:GetService("CoreGui") or game:GetService("Players").LocalPlayer:WaitForChild("PlayerGui")
+    mainFrame.Parent = parent
     
     return window
 end
