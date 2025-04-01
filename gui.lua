@@ -268,7 +268,7 @@ function GuiLibrary:CreateWindow(title)
                 return toggle
             end
             
-            -- Add slider element
+            -- Add slider element with fixed implementation
             function section:AddSlider(name, min, max, default, callback)
                 local slider = {}
                 
@@ -327,6 +327,21 @@ function GuiLibrary:CreateWindow(title)
                 fillCorner.CornerRadius = UDim.new(0, 4)
                 fillCorner.Parent = sliderFill
                 
+                -- Create drag knob (visible indicator)
+                local sliderKnob = Instance.new("Frame")
+                sliderKnob.Name = "Knob"
+                sliderKnob.Size = UDim2.new(0, 12, 0, 12)
+                sliderKnob.Position = UDim2.new(percent, -6, 0.5, -6)
+                sliderKnob.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
+                sliderKnob.BorderSizePixel = 0
+                sliderKnob.ZIndex = 2
+                sliderKnob.Parent = sliderBackground
+                
+                -- Add corner to knob
+                local knobCorner = Instance.new("UICorner")
+                knobCorner.CornerRadius = UDim.new(1, 0) -- Make it circular
+                knobCorner.Parent = sliderKnob
+                
                 local sliderButton = Instance.new("TextButton")
                 sliderButton.Name = "Button"
                 sliderButton.Size = UDim2.new(1, 0, 1, 0)
@@ -335,44 +350,79 @@ function GuiLibrary:CreateWindow(title)
                 sliderButton.Parent = sliderBackground
                 
                 local value = default
+                local dragging = false
                 
-                local function updateSlider(input)
-                    local pos = input.Position.X - sliderBackground.AbsolutePosition.X
-                    local size = sliderBackground.AbsoluteSize.X
-                    local percent = math.clamp(pos / size, 0, 1)
+                -- Update slider function
+                local function updateSlider(posX)
+                    -- Calculate relative position
+                    local relativePos = math.clamp((posX - sliderBackground.AbsolutePosition.X) / sliderBackground.AbsoluteSize.X, 0, 1)
                     
-                    sliderFill.Size = UDim2.new(percent, 0, 1, 0)
-                    value = math.floor(min + (max - min) * percent)
+                    -- Update slider fill
+                    sliderFill.Size = UDim2.new(relativePos, 0, 1, 0)
+                    
+                    -- Update knob position
+                    sliderKnob.Position = UDim2.new(relativePos, -6, 0.5, -6)
+                    
+                    -- Calculate value
+                    value = math.floor(min + ((max - min) * relativePos))
                     valueDisplay.Text = value .. "%"
                     
-                    if callback then callback(value) end
+                    -- Call callback
+                    if callback then
+                        callback(value)
+                    end
                 end
                 
-                sliderButton.MouseButton1Down:Connect(function(input)
-                    updateSlider({Position = {X = input.Position.X}})
+                -- Mouse button down event
+                sliderButton.MouseButton1Down:Connect(function()
+                    dragging = true
                     
-                    local connection
-                    connection = game:GetService("UserInputService").InputChanged:Connect(function(input)
-                        if input.UserInputType == Enum.UserInputType.MouseMovement then
-                            updateSlider({Position = {X = input.Position.X}})
-                        end
-                    end)
-                    
-                    game:GetService("UserInputService").InputEnded:Connect(function(input)
-                        if input.UserInputType == Enum.UserInputType.MouseButton1 then
-                            if connection then connection:Disconnect() end
-                        end
-                    end)
+                    -- Update on initial click
+                    local mousePos = game:GetService("UserInputService"):GetMouseLocation()
+                    updateSlider(mousePos.X)
                 end)
                 
+                -- Mouse movement handling
+                local mouseMoveConnection
+                mouseMoveConnection = game:GetService("UserInputService").InputChanged:Connect(function(input)
+                    if dragging and input.UserInputType == Enum.UserInputType.MouseMovement then
+                        updateSlider(input.Position.X)
+                    end
+                end)
+                
+                -- Mouse button up event
+                local mouseUpConnection
+                mouseUpConnection = game:GetService("UserInputService").InputEnded:Connect(function(input)
+                    if input.UserInputType == Enum.UserInputType.MouseButton1 then
+                        dragging = false
+                    end
+                end)
+                
+                -- Clean up connections when the slider is destroyed
+                sliderFrame.AncestryChanged:Connect(function(_, parent)
+                    if not parent then
+                        if mouseMoveConnection then
+                            mouseMoveConnection:Disconnect()
+                        end
+                        if mouseUpConnection then
+                            mouseUpConnection:Disconnect()
+                        end
+                    end
+                end)
+                
+                -- Set value function
                 function slider:SetValue(newValue)
                     value = math.clamp(newValue, min, max)
                     local percent = (value - min) / (max - min)
                     sliderFill.Size = UDim2.new(percent, 0, 1, 0)
+                    sliderKnob.Position = UDim2.new(percent, -6, 0.5, -6)
                     valueDisplay.Text = value .. "%"
-                    if callback then callback(value) end
+                    if callback then 
+                        callback(value) 
+                    end
                 end
                 
+                -- Get value function
                 function slider:GetValue()
                     return value
                 end
