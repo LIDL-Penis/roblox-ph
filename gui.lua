@@ -1,59 +1,100 @@
 local GuiLibrary = {}
 
--- Main functions to create GUI elements
 function GuiLibrary:CreateWindow(title)
+    -- First, ensure we create a proper ScreenGui
+    local screenGui = Instance.new("ScreenGui")
+    screenGui.Name = "PandoraInspired"
+    screenGui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
+    screenGui.ResetOnSpawn = false
+    
+    -- Try to place in CoreGui first (for exploits), then fallback to PlayerGui
+    local success = pcall(function()
+        screenGui.Parent = game:GetService("CoreGui")
+    end)
+    
+    if not success then
+        screenGui.Parent = game:GetService("Players").LocalPlayer:WaitForChild("PlayerGui")
+    end
+    
     local window = {
         Tabs = {},
-        ActiveTab = nil
+        ActiveTab = nil,
+        ScreenGui = screenGui
     }
     
-    -- Create main frame (dark background with blue accents)
+    -- Create main frame
     local mainFrame = Instance.new("Frame")
+    mainFrame.Name = "MainFrame"
     mainFrame.Size = UDim2.new(0, 600, 0, 400)
     mainFrame.Position = UDim2.new(0.5, -300, 0.5, -200)
     mainFrame.BackgroundColor3 = Color3.fromRGB(10, 10, 15)
     mainFrame.BorderSizePixel = 0
+    mainFrame.ClipsDescendants = true
+    mainFrame.Parent = screenGui
+    
+    -- Add corner radius to main frame
+    local uiCorner = Instance.new("UICorner")
+    uiCorner.CornerRadius = UDim.new(0, 6)
+    uiCorner.Parent = mainFrame
     
     -- Create title bar
     local titleBar = Instance.new("Frame")
+    titleBar.Name = "TitleBar"
     titleBar.Size = UDim2.new(1, 0, 0, 30)
     titleBar.BackgroundColor3 = Color3.fromRGB(15, 15, 20)
     titleBar.BorderSizePixel = 0
     titleBar.Parent = mainFrame
     
+    -- Add rounded corners to title bar
+    local titleCorner = Instance.new("UICorner")
+    titleCorner.CornerRadius = UDim.new(0, 6)
+    titleCorner.Parent = titleBar
+    
+    -- Title text
     local titleText = Instance.new("TextLabel")
+    titleText.Name = "Title"
     titleText.Text = title
-    titleText.Size = UDim2.new(1, 0, 1, 0)
+    titleText.Size = UDim2.new(1, -10, 1, 0)
+    titleText.Position = UDim2.new(0, 10, 0, 0)
     titleText.BackgroundTransparency = 1
     titleText.TextColor3 = Color3.fromRGB(255, 255, 255)
     titleText.TextSize = 16
     titleText.Font = Enum.Font.SourceSansBold
+    titleText.TextXAlignment = Enum.TextXAlignment.Left
     titleText.Parent = titleBar
     
     -- Create tab container
     local tabContainer = Instance.new("Frame")
+    tabContainer.Name = "TabContainer"
     tabContainer.Size = UDim2.new(0.25, 0, 1, -30)
     tabContainer.Position = UDim2.new(0, 0, 0, 30)
     tabContainer.BackgroundColor3 = Color3.fromRGB(15, 15, 20)
     tabContainer.BorderSizePixel = 0
     tabContainer.Parent = mainFrame
     
+    -- Add stroke to tab container
+    local tabContainerStroke = Instance.new("UIStroke")
+    tabContainerStroke.Color = Color3.fromRGB(30, 30, 35)
+    tabContainerStroke.Thickness = 1
+    tabContainerStroke.Parent = tabContainer
+    
     -- Create content container
     local contentContainer = Instance.new("Frame")
+    contentContainer.Name = "ContentContainer"
     contentContainer.Size = UDim2.new(0.75, 0, 1, -30)
     contentContainer.Position = UDim2.new(0.25, 0, 0, 30)
     contentContainer.BackgroundColor3 = Color3.fromRGB(20, 20, 25)
     contentContainer.BorderSizePixel = 0
     contentContainer.Parent = mainFrame
     
-    -- Function to select a tab
+    -- Tab selection function
     function window:SelectTab(tabIndex)
         local targetTab = self.Tabs[tabIndex]
         if not targetTab then return end
         
         -- Deselect current tab if one is active
         if self.ActiveTab then
-            self.ActiveTab.Button.BackgroundColor3 = Color3.fromRGB(20, 20, 25)
+            self.ActiveTab.Button.BackgroundColor3 = Color3.fromRGB(15, 15, 20)
             self.ActiveTab.Button.TextColor3 = Color3.fromRGB(150, 150, 150)
             self.ActiveTab.Content.Visible = false
         end
@@ -77,48 +118,67 @@ function GuiLibrary:CreateWindow(title)
             Content = nil
         }
         
+        local tabIndex = #self.Tabs + 1
+        
+        -- Create tab button
         local tabButton = Instance.new("TextButton")
+        tabButton.Name = "Tab_" .. tabName
         tabButton.Size = UDim2.new(1, 0, 0, 30)
-        tabButton.Position = UDim2.new(0, 0, 0, #self.Tabs * 30)
-        tabButton.BackgroundColor3 = Color3.fromRGB(20, 20, 25)
+        tabButton.Position = UDim2.new(0, 0, 0, (tabIndex - 1) * 30)
+        tabButton.BackgroundColor3 = Color3.fromRGB(15, 15, 20)
         tabButton.BorderSizePixel = 0
         tabButton.Text = tabName
         tabButton.TextColor3 = Color3.fromRGB(150, 150, 150)
-        tabButton.Font = Enum.Font.SourceSans
         tabButton.TextSize = 14
+        tabButton.Font = Enum.Font.SourceSans
         tabButton.Parent = tabContainer
         
+        -- Create content frame for this tab
         local contentFrame = Instance.new("ScrollingFrame")
+        contentFrame.Name = "Content_" .. tabName
         contentFrame.Size = UDim2.new(1, 0, 1, 0)
         contentFrame.BackgroundTransparency = 1
         contentFrame.BorderSizePixel = 0
         contentFrame.ScrollBarThickness = 4
         contentFrame.Visible = false
+        contentFrame.ScrollingDirection = Enum.ScrollingDirection.Y
+        contentFrame.AutomaticCanvasSize = Enum.AutomaticSize.Y
+        contentFrame.CanvasSize = UDim2.new(0, 0, 0, 0)
         contentFrame.Parent = contentContainer
         
         tab.Button = tabButton
         tab.Content = contentFrame
         
-        local tabIndex = #self.Tabs + 1
+        -- Store the tab
         self.Tabs[tabIndex] = tab
         
+        -- Connect tab button click
         tabButton.MouseButton1Click:Connect(function()
             self:SelectTab(tabIndex)
         end)
         
-        -- Function to add a section to the tab
+        -- Section creation function
         function tab:AddSection(sectionName)
             local section = {}
             local sectionIndex = #self.Sections
             
+            -- Create section frame
             local sectionFrame = Instance.new("Frame")
-            sectionFrame.Size = UDim2.new(0.95, 0, 0, 30)
+            sectionFrame.Name = "Section_" .. sectionName
+            sectionFrame.Size = UDim2.new(0.95, 0, 0, 30) -- Initial height
             sectionFrame.Position = UDim2.new(0.025, 0, 0, 10 + sectionIndex * 160)
             sectionFrame.BackgroundColor3 = Color3.fromRGB(25, 25, 30)
             sectionFrame.BorderSizePixel = 0
             sectionFrame.Parent = contentFrame
             
+            -- Add UI corner
+            local sectionCorner = Instance.new("UICorner")
+            sectionCorner.CornerRadius = UDim.new(0, 4)
+            sectionCorner.Parent = sectionFrame
+            
+            -- Create section header
             local sectionHeader = Instance.new("TextLabel")
+            sectionHeader.Name = "Header"
             sectionHeader.Size = UDim2.new(1, 0, 0, 30)
             sectionHeader.BackgroundColor3 = Color3.fromRGB(30, 30, 35)
             sectionHeader.BorderSizePixel = 0
@@ -128,7 +188,14 @@ function GuiLibrary:CreateWindow(title)
             sectionHeader.Font = Enum.Font.SourceSansBold
             sectionHeader.Parent = sectionFrame
             
+            -- Add header corner
+            local headerCorner = Instance.new("UICorner")
+            headerCorner.CornerRadius = UDim.new(0, 4)
+            headerCorner.Parent = sectionHeader
+            
+            -- Create section content
             local sectionContent = Instance.new("Frame")
+            sectionContent.Name = "Content"
             sectionContent.Size = UDim2.new(1, 0, 0, 130)
             sectionContent.Position = UDim2.new(0, 0, 0, 30)
             sectionContent.BackgroundTransparency = 1
@@ -136,24 +203,32 @@ function GuiLibrary:CreateWindow(title)
             
             local elementCount = 0
             
-            -- Function to add a toggle
+            -- Add toggle element
             function section:AddToggle(name, default, callback)
                 local toggle = {}
                 
                 local toggleFrame = Instance.new("Frame")
+                toggleFrame.Name = "Toggle_" .. name
                 toggleFrame.Size = UDim2.new(1, -10, 0, 25)
                 toggleFrame.Position = UDim2.new(0, 5, 0, 5 + elementCount * 30)
                 toggleFrame.BackgroundTransparency = 1
                 toggleFrame.Parent = sectionContent
                 
                 local toggleButton = Instance.new("Frame")
+                toggleButton.Name = "Button"
                 toggleButton.Size = UDim2.new(0, 16, 0, 16)
                 toggleButton.Position = UDim2.new(0, 5, 0.5, -8)
                 toggleButton.BackgroundColor3 = default and Color3.fromRGB(0, 120, 255) or Color3.fromRGB(50, 50, 55)
                 toggleButton.BorderSizePixel = 0
                 toggleButton.Parent = toggleFrame
                 
+                -- Add corner to toggle button
+                local toggleCorner = Instance.new("UICorner")
+                toggleCorner.CornerRadius = UDim.new(0, 3)
+                toggleCorner.Parent = toggleButton
+                
                 local toggleLabel = Instance.new("TextLabel")
+                toggleLabel.Name = "Label"
                 toggleLabel.Text = name
                 toggleLabel.Size = UDim2.new(1, -30, 1, 0)
                 toggleLabel.Position = UDim2.new(0, 30, 0, 0)
@@ -167,6 +242,7 @@ function GuiLibrary:CreateWindow(title)
                 local enabled = default or false
                 
                 local toggleClickArea = Instance.new("TextButton")
+                toggleClickArea.Name = "ClickArea"
                 toggleClickArea.Size = UDim2.new(1, 0, 1, 0)
                 toggleClickArea.BackgroundTransparency = 1
                 toggleClickArea.Text = ""
@@ -192,17 +268,19 @@ function GuiLibrary:CreateWindow(title)
                 return toggle
             end
             
-            -- Function to add a slider
+            -- Add slider element
             function section:AddSlider(name, min, max, default, callback)
                 local slider = {}
                 
                 local sliderFrame = Instance.new("Frame")
+                sliderFrame.Name = "Slider_" .. name
                 sliderFrame.Size = UDim2.new(1, -10, 0, 45)
                 sliderFrame.Position = UDim2.new(0, 5, 0, 5 + elementCount * 30)
                 sliderFrame.BackgroundTransparency = 1
                 sliderFrame.Parent = sectionContent
                 
                 local sliderLabel = Instance.new("TextLabel")
+                sliderLabel.Name = "Label"
                 sliderLabel.Text = name
                 sliderLabel.Size = UDim2.new(1, -50, 0, 20)
                 sliderLabel.BackgroundTransparency = 1
@@ -213,6 +291,7 @@ function GuiLibrary:CreateWindow(title)
                 sliderLabel.Parent = sliderFrame
                 
                 local valueDisplay = Instance.new("TextLabel")
+                valueDisplay.Name = "Value"
                 valueDisplay.Text = default .. "%"
                 valueDisplay.Size = UDim2.new(0, 40, 0, 20)
                 valueDisplay.Position = UDim2.new(1, -40, 0, 0)
@@ -223,20 +302,33 @@ function GuiLibrary:CreateWindow(title)
                 valueDisplay.Parent = sliderFrame
                 
                 local sliderBackground = Instance.new("Frame")
+                sliderBackground.Name = "Background"
                 sliderBackground.Size = UDim2.new(1, 0, 0, 8)
                 sliderBackground.Position = UDim2.new(0, 0, 0, 25)
                 sliderBackground.BackgroundColor3 = Color3.fromRGB(40, 40, 45)
                 sliderBackground.BorderSizePixel = 0
                 sliderBackground.Parent = sliderFrame
                 
+                -- Add corner to slider background
+                local bgCorner = Instance.new("UICorner")
+                bgCorner.CornerRadius = UDim.new(0, 4)
+                bgCorner.Parent = sliderBackground
+                
                 local sliderFill = Instance.new("Frame")
+                sliderFill.Name = "Fill"
                 local percent = (default - min) / (max - min)
                 sliderFill.Size = UDim2.new(percent, 0, 1, 0)
                 sliderFill.BackgroundColor3 = Color3.fromRGB(0, 120, 255)
                 sliderFill.BorderSizePixel = 0
                 sliderFill.Parent = sliderBackground
                 
+                -- Add corner to slider fill
+                local fillCorner = Instance.new("UICorner")
+                fillCorner.CornerRadius = UDim.new(0, 4)
+                fillCorner.Parent = sliderFill
+                
                 local sliderButton = Instance.new("TextButton")
+                sliderButton.Name = "Button"
                 sliderButton.Size = UDim2.new(1, 0, 1, 0)
                 sliderButton.BackgroundTransparency = 1
                 sliderButton.Text = ""
@@ -289,17 +381,19 @@ function GuiLibrary:CreateWindow(title)
                 return slider
             end
             
-            -- Function to add a dropdown
+            -- Add dropdown element
             function section:AddDropdown(name, options, default, callback)
                 local dropdown = {}
                 
                 local dropdownFrame = Instance.new("Frame")
+                dropdownFrame.Name = "Dropdown_" .. name
                 dropdownFrame.Size = UDim2.new(1, -10, 0, 45)
                 dropdownFrame.Position = UDim2.new(0, 5, 0, 5 + elementCount * 30)
                 dropdownFrame.BackgroundTransparency = 1
                 dropdownFrame.Parent = sectionContent
                 
                 local dropdownLabel = Instance.new("TextLabel")
+                dropdownLabel.Name = "Label"
                 dropdownLabel.Text = name
                 dropdownLabel.Size = UDim2.new(1, 0, 0, 20)
                 dropdownLabel.BackgroundTransparency = 1
@@ -310,6 +404,7 @@ function GuiLibrary:CreateWindow(title)
                 dropdownLabel.Parent = dropdownFrame
                 
                 local dropdownButton = Instance.new("TextButton")
+                dropdownButton.Name = "Button"
                 dropdownButton.Text = default or options[1] or "Select"
                 dropdownButton.Size = UDim2.new(1, 0, 0, 25)
                 dropdownButton.Position = UDim2.new(0, 0, 0, 20)
@@ -320,7 +415,13 @@ function GuiLibrary:CreateWindow(title)
                 dropdownButton.Font = Enum.Font.SourceSans
                 dropdownButton.Parent = dropdownFrame
                 
+                -- Add corner to dropdown button
+                local buttonCorner = Instance.new("UICorner")
+                buttonCorner.CornerRadius = UDim.new(0, 4)
+                buttonCorner.Parent = dropdownButton
+                
                 local dropdownMenu = Instance.new("Frame")
+                dropdownMenu.Name = "Menu"
                 dropdownMenu.Size = UDim2.new(1, 0, 0, #options * 25)
                 dropdownMenu.Position = UDim2.new(0, 0, 1, 0)
                 dropdownMenu.BackgroundColor3 = Color3.fromRGB(50, 50, 55)
@@ -328,6 +429,11 @@ function GuiLibrary:CreateWindow(title)
                 dropdownMenu.Visible = false
                 dropdownMenu.ZIndex = 10
                 dropdownMenu.Parent = dropdownButton
+                
+                -- Add corner to dropdown menu
+                local menuCorner = Instance.new("UICorner")
+                menuCorner.CornerRadius = UDim.new(0, 4)
+                menuCorner.Parent = dropdownMenu
                 
                 local isOpen = false
                 local selected = default or options[1] or "Select"
@@ -339,6 +445,7 @@ function GuiLibrary:CreateWindow(title)
                 
                 for i, option in ipairs(options) do
                     local optionButton = Instance.new("TextButton")
+                    optionButton.Name = "Option_" .. option
                     optionButton.Text = option
                     optionButton.Size = UDim2.new(1, 0, 0, 25)
                     optionButton.Position = UDim2.new(0, 0, 0, (i-1) * 25)
@@ -378,39 +485,26 @@ function GuiLibrary:CreateWindow(title)
                 return dropdown
             end
             
-            -- Make section frame adjust height based on elements
+            -- Update section size based on elements
             local function updateSectionSize()
                 sectionContent.Size = UDim2.new(1, 0, 0, 10 + elementCount * 30)
                 sectionFrame.Size = UDim2.new(0.95, 0, 0, 40 + elementCount * 30)
-                
-                -- Update positions of sections that come after this one
-                for i = sectionIndex + 1, #self.Sections do
-                    local prevSection = self.Sections[i-1]
-                    local prevFrame = prevSection.Frame
-                    local currentSection = self.Sections[i]
-                    local currentFrame = currentSection.Frame
-                    
-                    currentFrame.Position = UDim2.new(0.025, 0, 0, prevFrame.Position.Y.Offset + prevFrame.Size.Y.Offset + 10)
-                end
             end
             
             section.Frame = sectionFrame
             section.UpdateSize = updateSectionSize
             
+            -- Store the section
             self.Sections[#self.Sections + 1] = section
+            
             return section
-        end
-        
-        -- Select the first tab by default
-        if tabIndex == 1 then
-            self:SelectTab(1)
         end
         
         return tab
     end
     
-    -- Function to make the GUI draggable
-    local dragging
+    -- Make the GUI draggable
+    local dragging = false
     local dragInput
     local dragStart
     local startPos
@@ -423,7 +517,7 @@ function GuiLibrary:CreateWindow(title)
         end
     end)
     
-    titleBar.InputEnded:Connect(function(input)
+    game:GetService("UserInputService").InputEnded:Connect(function(input)
         if input.UserInputType == Enum.UserInputType.MouseButton1 then
             dragging = false
         end
@@ -441,9 +535,12 @@ function GuiLibrary:CreateWindow(title)
         end
     end)
     
-    -- Make GUI visible and return window
-    local parent = game:GetService("CoreGui") or game:GetService("Players").LocalPlayer:WaitForChild("PlayerGui")
-    mainFrame.Parent = parent
+    -- Select first tab when it's added
+    window.SelectFirstTab = function()
+        if #window.Tabs > 0 then
+            window:SelectTab(1)
+        end
+    end
     
     return window
 end
